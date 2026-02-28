@@ -1,0 +1,128 @@
+# Implementation Plan
+
+- [x] 1. Write bug condition exploration test
+  - **Property 1: Fault Condition** - Setup Script Creates Bedrock Agents
+  - **CRITICAL**: This test MUST FAIL on unfixed code - failure confirms the bug exists
+  - **DO NOT attempt to fix the test or the code when it fails**
+  - **NOTE**: This test encodes the expected behavior - it will validate the fix when it passes after implementation
+  - **GOAL**: Surface counterexamples that demonstrate the architectural mismatch
+  - **Scoped PBT Approach**: Scope the property to the concrete failing case - execution of setup_bedrock_agents.py
+  - Test that setup_bedrock_agents.py attempts to call bedrock_client.create_agent() and bedrock_client.create_agent_alias()
+  - Test that the script generates agent_config.json with Bedrock agent IDs (not Strand service configuration)
+  - Test that ValidationException occurs when creating agent aliases before agents are fully provisioned
+  - Run test on UNFIXED code
+  - **EXPECTED OUTCOME**: Test FAILS (this is correct - it proves the bug exists)
+  - Document counterexamples found:
+    - ValidationException: "Create operation can't be performed on AgentAlias when Agent is in Creating state"
+    - agent_config.json contains Bedrock agent IDs that are never used by runtime
+    - No verification of Strand agent modules or FastAPI service configuration
+  - Mark task complete when test is written, run, and failure is documented
+  - _Requirements: 1.1, 1.2, 1.3, 1.4_
+
+- [x] 2. Write preservation property tests (BEFORE implementing fix)
+  - **Property 2: Preservation** - Runtime Agent Orchestration Unchanged
+  - **IMPORTANT**: Follow observation-first methodology
+  - Observe behavior on UNFIXED code for runtime agent invocations (non-setup-script execution)
+  - Test Case 1: Send agent invocation request to /invoke endpoint → Observe JSON_Line stream output with agent progress updates
+  - Test Case 2: Trace agent execution order → Observe: SourcingAgent → MatchmakingAgent → CollaboratorAgent → DraftingAgent
+  - Test Case 3: Monitor AWS API calls → Observe calls to Bedrock Runtime API (InvokeModel), NOT Bedrock Agent API
+  - Test Case 4: Verify FastAPI endpoint behavior → Observe streaming response format and agent coordination
+  - Test Case 5: Check AWS credentials usage → Observe requirements for AWS_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
+  - Write property-based tests capturing observed behavior patterns:
+    - For all agent invocation requests, orchestration follows same execution order
+    - For all agent invocations, Bedrock Runtime API is used (not Bedrock Agent API)
+    - For all invocations, JSON_Line streaming format is preserved
+    - For all invocations, AWS credentials are required and used identically
+  - Property-based testing generates many test cases for stronger guarantees
+  - Run tests on UNFIXED code
+  - **EXPECTED OUTCOME**: Tests PASS (this confirms baseline behavior to preserve)
+  - Mark task complete when tests are written, run, and passing on unfixed code
+  - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5_
+
+- [ ] 3. Fix for Strand Agent Orchestration Architectural Mismatch
+
+  - [x] 3.1 Remove Bedrock Agent creation logic from setup_bedrock_agents.py
+    - Delete the create_bedrock_agent() function entirely
+    - Remove all calls to bedrock_client.create_agent()
+    - Remove all calls to bedrock_client.create_agent_alias()
+    - Remove all calls to bedrock_client.prepare_agent()
+    - Remove agent status polling logic (bedrock_client.get_agent())
+    - Remove existing agent lookup logic (bedrock_client.list_agents())
+    - Remove IAM role dependency and iam_config.json requirement
+    - _Bug_Condition: isBugCondition(input) where input.scriptName == "setup_bedrock_agents.py" AND input.executionPath CONTAINS "create_bedrock_agent()" AND runtimeArchitecture == "Strand-based FastAPI"_
+    - _Expected_Behavior: setup script verifies Strand agent configuration without creating Bedrock agents_
+    - _Preservation: Runtime agent orchestration via FastAPI and Strand must remain unchanged_
+    - _Requirements: 2.1, 2.2, 2.3_
+
+  - [x] 3.2 Add Strand agent configuration verification
+    - Add verification that agent-service/agents/ directory exists
+    - Add verification that required agent modules are present:
+      - orchestrator.py
+      - sourcing.py
+      - matchmaking.py
+      - collaborator.py
+      - drafting.py
+    - Add AWS credentials check for Bedrock Runtime API access (AWS_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY)
+    - Add verification that agent service dependencies are installed (requirements.txt)
+    - Add optional health check for FastAPI /health endpoint
+    - _Bug_Condition: isBugCondition(input) where setup script attempts Bedrock agent creation_
+    - _Expected_Behavior: setup script verifies Strand-based architecture components_
+    - _Preservation: No changes to runtime agent execution_
+    - _Requirements: 2.1, 2.2, 2.3_
+
+  - [x] 3.3 Update agent_config.json generation for Strand architecture
+    - Replace Bedrock agent ID structure with Strand service configuration
+    - Generate configuration with:
+      - architecture: "strand-fastapi"
+      - agentServiceUrl: "http://localhost:8001"
+      - agentServiceEndpoint: "/invoke"
+      - requiredAgents: ["orchestrator", "sourcing", "matchmaking", "collaborator", "drafting"]
+      - bedrockRuntimeConfig: { region, model }
+    - Remove agent IDs, ARNs, and alias information
+    - _Bug_Condition: isBugCondition(input) where config contains unused Bedrock agent IDs_
+    - _Expected_Behavior: config reflects actual Strand-FastAPI architecture_
+    - _Preservation: Runtime does not read this config, so no runtime impact_
+    - _Requirements: 2.1, 2.2, 2.3_
+
+  - [x] 3.4 Update script documentation and output messages
+    - Modify script docstring to reflect Strand agent verification purpose
+    - Update print statements to indicate verification (not creation) of agents
+    - Add success message confirming Strand agent configuration is valid
+    - Add error messages for missing agent modules or credentials
+    - _Bug_Condition: isBugCondition(input) where script documentation mentions Bedrock agent creation_
+    - _Expected_Behavior: documentation accurately describes Strand verification_
+    - _Preservation: Documentation changes do not affect runtime behavior_
+    - _Requirements: 2.1, 2.2, 2.3_
+
+  - [ ] 3.5 Verify bug condition exploration test now passes
+    - **Property 1: Expected Behavior** - Setup Script Verifies Strand Configuration
+    - **IMPORTANT**: Re-run the SAME test from task 1 - do NOT write a new test
+    - The test from task 1 encodes the expected behavior
+    - When this test passes, it confirms the expected behavior is satisfied
+    - Run bug condition exploration test from step 1
+    - Verify setup script does NOT attempt to create Bedrock agents
+    - Verify setup script generates Strand-based agent_config.json
+    - Verify no ValidationException occurs
+    - Verify verification logic checks for agent modules and AWS credentials
+    - **EXPECTED OUTCOME**: Test PASSES (confirms bug is fixed)
+    - _Requirements: 2.1, 2.2, 2.3_
+
+  - [ ] 3.6 Verify preservation tests still pass
+    - **Property 2: Preservation** - Runtime Agent Orchestration Unchanged
+    - **IMPORTANT**: Re-run the SAME tests from task 2 - do NOT write new tests
+    - Run preservation property tests from step 2
+    - Verify agent orchestration order remains: SourcingAgent → MatchmakingAgent → CollaboratorAgent → DraftingAgent
+    - Verify Bedrock Runtime API usage is unchanged
+    - Verify JSON_Line streaming format is preserved
+    - Verify FastAPI endpoint behavior is identical
+    - Verify AWS credentials requirements are unchanged
+    - **EXPECTED OUTCOME**: Tests PASS (confirms no regressions)
+    - Confirm all tests still pass after fix (no regressions)
+    - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5_
+
+- [ ] 4. Checkpoint - Ensure all tests pass
+  - Ensure all tests pass, ask the user if questions arise
+  - Verify setup script completes successfully without ValidationException
+  - Verify agent_config.json has correct Strand-FastAPI format
+  - Verify runtime agent invocations continue to work identically
+  - Verify no Bedrock Agent API calls are made during setup or runtime

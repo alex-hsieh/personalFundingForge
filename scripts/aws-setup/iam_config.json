@@ -1,0 +1,15 @@
+{
+  "account_id": "147997139179",
+  "region": "us-east-1",
+  "roles": {
+    "supervisor": "arn:aws:iam::147997139179:role/FundingForge-SupervisorAgent-Role",
+    "sourcing": "arn:aws:iam::147997139179:role/FundingForge-SourcingAgent-Role",
+    "matchmaking": "arn:aws:iam::147997139179:role/FundingForge-MatchmakingAgent-Role",
+    "collaborator": "arn:aws:iam::147997139179:role/FundingForge-CollaboratorAgent-Role",
+    "drafting": "arn:aws:iam::147997139179:role/FundingForge-DraftingAgent-Role",
+    "knowledge_base": "arn:aws:iam::147997139179:role/FundingForge-KnowledgeBase-Role",
+    "lambda_faculty_ranking": "arn:aws:iam::147997139179:role/FundingForge-FacultyRanking-Lambda-Role",
+    "lambda_compliance_checker": "arn:aws:iam::147997139179:role/FundingForge-ComplianceChecker-Lambda-Role",
+    "lambda_proposal_formatter": "arn:aws:iam::147997139179:role/FundingForge-ProposalFormatter-Lambda-Role"
+  }
+}

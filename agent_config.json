@@ -1,0 +1,16 @@
+{
+  "architecture": "strand-fastapi",
+  "agentServiceUrl": "http://localhost:8001",
+  "agentServiceEndpoint": "/invoke",
+  "requiredAgents": [
+    "orchestrator",
+    "sourcing",
+    "matchmaking",
+    "collaborator",
+    "drafting"
+  ],
+  "bedrockRuntimeConfig": {
+    "region": "us-east-1",
+    "model": "anthropic.claude-3-5-sonnet-20241022-v2:0"
+  }
+}

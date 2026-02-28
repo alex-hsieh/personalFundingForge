@@ -198,10 +198,96 @@ def create_opensearch_collection(aoss_client, collection_name: str, account_id: 
             }
         raise
 
+def create_opensearch_index(collection_endpoint: str, index_name: str):
+    """Create OpenSearch index for Knowledge Base"""
+    from opensearchpy import OpenSearch, RequestsHttpConnection
+    from requests_aws4auth import AWS4Auth
+    import boto3
+    
+    print(f"Creating OpenSearch index: {index_name}")
+    
+    # Get AWS credentials for signing requests
+    credentials = boto3.Session().get_credentials()
+    awsauth = AWS4Auth(
+        credentials.access_key,
+        credentials.secret_key,
+        boto3.Session().region_name,
+        'aoss',
+        session_token=credentials.token
+    )
+    
+    # Create OpenSearch client
+    host = collection_endpoint.replace('https://', '')
+    client = OpenSearch(
+        hosts=[{'host': host, 'port': 443}],
+        http_auth=awsauth,
+        use_ssl=True,
+        verify_certs=True,
+        connection_class=RequestsHttpConnection,
+        timeout=300
+    )
+    
+    # Define index mapping for vector search
+    index_body = {
+        'settings': {
+            'index': {
+                'knn': True,
+                'knn.algo_param.ef_search': 512
+            }
+        },
+        'mappings': {
+            'properties': {
+                'embedding': {
+                    'type': 'knn_vector',
+                    'dimension': 1024,
+                    'method': {
+                        'name': 'hnsw',
+                        'engine': 'faiss',
+                        'parameters': {
+                            'ef_construction': 512,
+                            'm': 16
+                        }
+                    }
+                },
+                'text': {
+                    'type': 'text'
+                },
+                'metadata': {
+                    'type': 'text'
+                }
+            }
+        }
+    }
+    
+    try:
+        # Create index
+        response = client.indices.create(index=index_name, body=index_body)
+        print(f"✓ Created OpenSearch index: {index_name}")
+        return True
+    except Exception as e:
+        if 'resource_already_exists_exception' in str(e).lower():
+            print(f"✓ OpenSearch index {index_name} already exists")
+            return True
+        else:
+            print(f"⚠️  Warning: Could not create index: {e}")
+            print(f"  You may need to create it manually or install opensearch-py")
+            return False
+
 def create_knowledge_base(bedrock_client, kb_name: str, role_arn: str, 
-                         collection_arn: str, s3_bucket: str, region: str) -> Dict[str, str]:
+                         collection_arn: str, collection_endpoint: str, s3_bucket: str, region: str) -> Dict[str, str]:
     """Create Bedrock Knowledge Base"""
     print(f"Creating Bedrock Knowledge Base: {kb_name}")
+    
+    # Try to create the OpenSearch index first
+    try:
+        create_opensearch_index(collection_endpoint, 'fundingforge-index')
+    except ImportError:
+        print("⚠️  Warning: opensearch-py not installed, skipping index creation")
+        print("  Install with: pip install opensearch-py requests-aws4auth")
+        print("  The Knowledge Base creation may fail if the index doesn't exist")
+    except Exception as e:
+        print(f"⚠️  Warning: Could not create OpenSearch index: {e}")
+        print("  Proceeding anyway - Knowledge Base creation may fail")
     
     try:
         # Create Knowledge Base
@@ -404,7 +490,7 @@ def main():
     kb_name = 'FundingForgeKnowledgeBase'
     config['knowledge_base'] = create_knowledge_base(
         bedrock_client, kb_name, kb_role_arn,
-        config['opensearch']['arn'], bucket_name, args.region
+        config['opensearch']['arn'], config['opensearch']['endpoint'], bucket_name, args.region
     )
     
     # 5. Start ingestion job
