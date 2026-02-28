@@ -1,148 +1,59 @@
 # FundingForge Agent Service
 
-Python FastAPI microservice that orchestrates a multi-agent AI pipeline powered by AWS Strands Agents SDK and AWS Bedrock.
+Python FastAPI microservice that orchestrates a multi-agent AI pipeline for grant proposal generation using AWS Strands Agents SDK and AWS Bedrock.
 
 ## Architecture
 
-The agent service implements five specialized agents:
-- **SourcingAgent** (Haiku): Extracts and structures user CV and profile data
-- **MatchmakingAgent** (Haiku): Analyzes grant fit AND checks policy/compliance
-- **CollaboratorAgent** (Haiku): Recommends relevant faculty collaborators
-- **DraftingAgent** (Sonnet): Generates high-quality proposal narrative
-- **OrchestratorAgent**: Coordinates execution of all agents in sequence
+The service implements five specialized agents:
 
-## Required Environment Variables
+1. **SourcingAgent** (Haiku) - Extracts and structures user CV and profile data
+2. **MatchmakingAgent** (Haiku) - Analyzes grant fit AND checks policy/compliance
+3. **CollaboratorAgent** (Haiku) - Finds and ranks relevant faculty collaborators
+4. **DraftingAgent** (Sonnet) - Generates high-quality proposal narrative
+5. **OrchestratorAgent** - Coordinates execution of all specialized agents
+
+## Requirements
+
+- Python 3.11 or later
+- AWS credentials with Bedrock access
+- Required IAM permissions:
+  - `bedrock:InvokeModel` for Claude Haiku and Sonnet models
+  - `bedrock:InvokeModelWithResponseStream` for streaming responses
+
+## Environment Variables
+
+Create a `.env` file in the `agent-service/` directory:
 
 ```bash
-# AWS Configuration (REQUIRED)
+# Required
 AWS_REGION=us-east-1
-AWS_ACCESS_KEY_ID=your_access_key_here
-AWS_SECRET_ACCESS_KEY=your_secret_key_here
+AWS_ACCESS_KEY_ID=your_access_key
+AWS_SECRET_ACCESS_KEY=your_secret_key
 
-# Bedrock Model Configuration (OPTIONAL - defaults provided)
+# Optional (with defaults)
 BEDROCK_MODEL_DRAFTING=anthropic.claude-sonnet-4-6
 BEDROCK_MODEL_FAST=anthropic.claude-haiku-4-5-20251001-v1:0
-
-# Service Configuration (OPTIONAL)
 PORT=8001
 ```
 
-## Required IAM Permissions
-
-Your AWS credentials must have the following permissions:
-
-```json
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Action": [
-        "bedrock:InvokeModel",
-        "bedrock:InvokeModelWithResponseStream"
-      ],
-      "Resource": [
-        "arn:aws:bedrock:*::foundation-model/anthropic.claude-haiku-4-5-20251001-v1:0",
-        "arn:aws:bedrock:*::foundation-model/anthropic.claude-sonnet-4-6"
-      ]
-    }
-  ]
-}
-```
-
-## Local Development Setup
-
-### 1. Create Virtual Environment
+## Installation
 
 ```bash
 cd agent-service
-python -m venv venv
-
-# On Windows
-venv\Scripts\activate
-
-# On macOS/Linux
-source venv/bin/activate
-```
-
-### 2. Install Dependencies
-
-```bash
 pip install -r requirements.txt
 ```
 
-### 3. Configure Environment
+## Running Locally
 
 ```bash
-# Copy example environment file
-cp .env.example .env
-
-# Edit .env with your AWS credentials
-# IMPORTANT: Never commit .env to version control
-```
-
-### 4. Run the Service
-
-```bash
-# Development mode with auto-reload
-uvicorn main:app --port 8001 --reload
-
-# Production mode
+# From agent-service directory
 python main.py
+
+# Or using uvicorn directly
+uvicorn main:app --host 0.0.0.0 --port 8001 --reload
 ```
 
-### 5. Access API Documentation
-
-Once running, visit:
-- Swagger UI: http://localhost:8001/docs
-- ReDoc: http://localhost:8001/redoc
-- Health Check: http://localhost:8001/health
-
-## Running Jupyter Notebooks
-
-The `notebooks/` directory contains isolated testing notebooks for each agent:
-
-```bash
-# Install Jupyter
-pip install jupyter
-
-# Start Jupyter
-jupyter notebook notebooks/
-
-# Open and run notebooks in order:
-# 01_sourcing_agent.ipynb
-# 02_matchmaking_agent.ipynb
-# 03_collaborator_agent.ipynb
-# 04_drafting_agent.ipynb
-# 05_orchestrator_agent.ipynb
-# 06_full_pipeline.ipynb
-```
-
-## Docker Deployment
-
-### Build Image
-
-```bash
-docker build -t fundingforge-agent-service .
-```
-
-### Run Container
-
-```bash
-docker run -d \
-  -p 8001:8001 \
-  -e AWS_REGION=us-east-1 \
-  -e AWS_ACCESS_KEY_ID=your_key \
-  -e AWS_SECRET_ACCESS_KEY=your_secret \
-  --name fundingforge-agents \
-  fundingforge-agent-service
-```
-
-### Check Health
-
-```bash
-curl http://localhost:8001/health
-```
+The service will be available at `http://localhost:8001`
 
 ## API Endpoints
 
@@ -155,20 +66,20 @@ Invokes the multi-agent pipeline for grant proposal generation.
 {
   "grantId": 1,
   "grantName": "NSF GRFP",
-  "matchCriteria": "PhD students in STEM fields...",
-  "eligibility": "Must be US citizen or permanent resident...",
+  "matchCriteria": "STEM, Social Science, Research",
+  "eligibility": "Year 1-2 PhD",
   "userProfile": {
     "role": "PhD Student",
-    "year": "2nd Year",
+    "year": "Year 1",
     "program": "Computer Science"
   },
   "facultyList": [
     {
-      "name": "Dr. Jane Smith",
+      "name": "Dr. Sarah Chen",
       "department": "Computer Science",
-      "expertise": "Machine Learning, AI",
+      "expertise": "AI, Machine Learning",
       "imageUrl": "https://example.com/image.jpg",
-      "bio": "Professor of Computer Science..."
+      "bio": "Dr. Chen focuses on neural architecture search..."
     }
   ]
 }
@@ -176,7 +87,7 @@ Invokes the multi-agent pipeline for grant proposal generation.
 
 **Response:** Streaming newline-delimited JSON (application/x-ndjson)
 
-Each line is a JSON object with format:
+Each line is a JSON object with the format:
 ```json
 {
   "agent": "sourcing|matchmaking|collaborator|drafting|orchestrator",
@@ -186,7 +97,7 @@ Each line is a JSON object with format:
 }
 ```
 
-Final line includes complete result:
+Final message (done=true):
 ```json
 {
   "agent": "orchestrator",
@@ -194,7 +105,7 @@ Final line includes complete result:
   "output": {
     "proposalDraft": "...",
     "collaborators": [...],
-    "matchScore": 85,
+    "matchScore": 75,
     "matchJustification": "...",
     "complianceChecklist": [...]
   },
@@ -202,75 +113,94 @@ Final line includes complete result:
 }
 ```
 
+### GET /health
+
+Health check endpoint.
+
+**Response:**
+```json
+{
+  "status": "healthy",
+  "service": "fundingforge-agent-service"
+}
+```
+
+## Docker
+
+Build and run using Docker:
+
+```bash
+# Build image
+docker build -t fundingforge-agent-service .
+
+# Run container
+docker run -p 8001:8001 \
+  -e AWS_REGION=us-east-1 \
+  -e AWS_ACCESS_KEY_ID=your_key \
+  -e AWS_SECRET_ACCESS_KEY=your_secret \
+  fundingforge-agent-service
+```
+
+## Testing with Jupyter Notebooks
+
+The `notebooks/` directory contains interactive notebooks for testing each agent:
+
+- `01_sourcing_agent.ipynb` - Test SourcingAgent
+- `02_matchmaking_agent.ipynb` - Test MatchmakingAgent
+- `03_collaborator_agent.ipynb` - Test CollaboratorAgent
+- `04_drafting_agent.ipynb` - Test DraftingAgent
+- `05_orchestrator_agent.ipynb` - Test OrchestratorAgent
+- `06_full_pipeline.ipynb` - Test complete pipeline
+
 ## Cost Considerations
 
-### Pricing (as of 2024)
-- **Claude Haiku**: ~$0.25 per 1M input tokens, ~$1.25 per 1M output tokens
-- **Claude Sonnet**: ~$3 per 1M input tokens, ~$15 per 1M output tokens
+AWS Bedrock pricing (as of 2024):
+- Claude Haiku: ~$0.25 per 1M input tokens, ~$1.25 per 1M output tokens
+- Claude Sonnet: ~$3 per 1M input tokens, ~$15 per 1M output tokens
 
-### Typical Pipeline Cost
-- SourcingAgent: 200 input + 300 output tokens (~$0.0004)
-- MatchmakingAgent: 400 input + 500 output tokens (~$0.0007)
-- CollaboratorAgent: 300 input + 200 output tokens (~$0.0003)
-- DraftingAgent: 600 input + 400 output tokens (~$0.0078)
+Estimated cost per proposal generation: $0.05 - $0.15
 
-**Estimated cost per proposal: ~$0.015**
+## Monitoring
 
-### Monitoring Recommendations
-
-1. **CloudWatch Metrics**: Track Bedrock API calls and latency
-2. **Cost Alerts**: Set up billing alerts for unexpected usage
-3. **Token Tracking**: Log token usage per agent for optimization
-4. **Error Monitoring**: Alert on high error rates or throttling
+Monitor agent performance:
+- Check CloudWatch logs for Bedrock API calls
+- Track token usage in CloudWatch metrics
+- Monitor response times and error rates
 
 ## Troubleshooting
 
-### "Missing environment variables" error
-- Ensure all required AWS credentials are set in `.env`
-- Check that `.env` file is in the same directory as `main.py`
-- Verify environment variables are exported if not using `.env`
+**Issue: "Missing environment variables"**
+- Ensure all required environment variables are set
+- Check `.env` file is in the correct directory
 
-### "AccessDeniedException" from Bedrock
-- Verify IAM permissions include `bedrock:InvokeModel`
-- Check that model IDs are correct and available in your region
-- Ensure AWS credentials are valid and not expired
+**Issue: "Bedrock model not found"**
+- Verify model IDs are correct
+- Ensure your AWS account has access to Claude models in Bedrock
+- Check AWS region supports the models
 
-### "ThrottlingException" from Bedrock
-- Bedrock has rate limits per model
-- Implement exponential backoff (already included via tenacity)
-- Consider requesting quota increases for production
+**Issue: "Agent service unreachable"**
+- Verify service is running on port 8001
+- Check firewall settings
+- Ensure AGENT_SERVICE_URL is set correctly in Express backend
 
-### Agent service unreachable from Express backend
-- Verify agent service is running on port 8001
-- Check firewall rules allow connections
-- Ensure `AGENT_SERVICE_URL` in Express backend points to correct URL
-- Test health endpoint: `curl http://localhost:8001/health`
+## Development
 
-## Development Workflow
+The agent implementations use the Strands Agents SDK:
 
-1. **Prototype in Notebooks**: Test individual agents in isolation
-2. **Implement Agents**: Create agent files in `agents/` directory
-3. **Wire to Orchestrator**: Connect agents in `agents/orchestrator.py`
-4. **Update main.py**: Replace placeholder with orchestrator
-5. **Test Locally**: Run service and test with sample requests
-6. **Deploy**: Build Docker image and deploy to production
+```python
+from strands import Agent
+from strands.models import BedrockModel
 
-## Security Best Practices
+# Create model
+model = BedrockModel(model_id="anthropic.claude-haiku-4-5-20251001-v1:0")
 
-- ✅ Never commit AWS credentials to version control
-- ✅ Use IAM roles in production (avoid access keys)
-- ✅ Rotate credentials regularly
-- ✅ Implement least-privilege IAM policies
-- ✅ Validate all inputs before passing to agents
-- ✅ Sanitize all outputs before streaming
-- ✅ Use HTTPS in production
-- ✅ Implement rate limiting
-- ✅ Monitor for unusual activity
+# Create agent
+agent = Agent(model=model, system_prompt="Your system prompt here")
 
-## Support
+# Run agent
+response = await agent.run("User input")
+```
 
-For issues or questions:
-1. Check this README for troubleshooting steps
-2. Review agent implementation in `agents/` directory
-3. Test individual agents using Jupyter notebooks
-4. Check logs for detailed error messages
+## License
+
+MIT

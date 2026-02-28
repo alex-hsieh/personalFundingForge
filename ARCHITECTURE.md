@@ -158,12 +158,27 @@ Agent Service          Express Backend         Frontend
 - `client/src/components/DiscoveryDashboard.tsx` - Results display
 - `client/src/hooks/use-forge-stream.ts` - SSE hook
 
+### Python Agent Service (FastAPI)
+
+**Note**: The original spec referenced "AWS AgentCore" as an intermediary layer. However, AWS Bedrock AgentCore is actually a managed deployment platform (like AWS Fargate for agents), not a client SDK. Our implementation uses direct HTTP communication from Express to the FastAPI agent service, which is simpler and more straightforward.
+
+**Responsibilities:**
+- Multi-agent orchestration
+- Bedrock model invocation
+- JSON_Line streaming
+- Error handling and retry logic
+
+**Key Files:**
+- `agent-service/main.py` - FastAPI app
+- `agent-service/agents/` - Agent implementations
+- `agent-service/models.py` - Pydantic models
+
 ### Express Backend (Node.js)
 
 **Responsibilities:**
 - REST API endpoints
 - Database queries (grants, faculty)
-- AgentCore integration
+- Direct HTTP communication with agent service
 - SSE proxy and transformation
 - Graceful degradation (mock fallback)
 - Session management
@@ -171,16 +186,8 @@ Agent Service          Express Backend         Frontend
 **Key Files:**
 - `server/routes.ts` - API routes
 - `server/storage.ts` - Database layer
-- `server/agentcore-client.ts` - AgentCore integration
+- `server/agent-client.ts` - Agent service HTTP client
 - `server/index.ts` - Server entry point
-
-### AWS AgentCore
-
-**Responsibilities:**
-- Agent lifecycle management
-- Communication routing
-- Health monitoring
-- Load balancing (production)
 
 **Configuration:**
 - Endpoint: http://localhost:8000 (local)

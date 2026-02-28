@@ -1,13 +1,12 @@
 /**
- * AWS AgentCore Integration Client
+ * Agent Service Integration Client
  * 
- * Manages agent lifecycle and communication between Express backend and agent service.
+ * Manages communication between Express backend and Python agent service.
  * Streams JSON_Line responses from the agent service.
+ * 
+ * Note: AWS Bedrock AgentCore is a managed runtime service for deploying agents,
+ * not a client SDK. Our architecture uses direct HTTP calls to the FastAPI agent service.
  */
-
-// TODO: Implement AgentCore integration
-// Note: This is a placeholder implementation until AWS AgentCore SDK is available
-// For now, we'll use direct HTTP calls as a fallback
 
 interface JSONLine {
   agent: string;
@@ -36,7 +35,7 @@ interface InvokePayload {
 }
 
 /**
- * Invokes the agent pipeline through AgentCore (or direct HTTP as fallback)
+ * Invokes the agent pipeline via direct HTTP to the agent service
  * 
  * @param payload - The complete request payload for the agent service
  * @returns AsyncGenerator yielding JSON_Line responses
@@ -47,8 +46,6 @@ export async function* invokeAgentPipeline(
   const agentServiceUrl = process.env.AGENT_SERVICE_URL || 'http://localhost:8001';
   
   try {
-    // TODO: Replace with AWS AgentCore client when available
-    // For now, use direct HTTP call to agent service
     const response = await fetch(`${agentServiceUrl}/invoke`, {
       method: 'POST',
       headers: {

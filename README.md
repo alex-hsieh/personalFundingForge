@@ -7,16 +7,15 @@ AI-powered grant proposal generation platform with multi-agent orchestration.
 FundingForge uses a multi-agent AI pipeline powered by AWS Bedrock to generate personalized grant proposals:
 
 ```
-Frontend (React) → Express Backend → AWS AgentCore → Python Agent Service → AWS Bedrock
+Frontend (React) → Express Backend → Python Agent Service (FastAPI) → AWS Bedrock
 ```
 
 ### Components
 
 1. **Frontend**: React + TypeScript with Wouter routing and Tailwind CSS
 2. **Express Backend**: REST API with SSE streaming for real-time updates
-3. **AWS AgentCore**: Manages agent lifecycle and communication
-4. **Python Agent Service**: FastAPI microservice orchestrating 5 specialized agents
-5. **AWS Bedrock**: Foundation models (Claude Haiku & Sonnet)
+3. **Python Agent Service**: FastAPI microservice orchestrating 5 specialized agents
+4. **AWS Bedrock**: Foundation models (Claude Haiku & Sonnet)
 
 ### Five Specialized Agents
 
@@ -180,7 +179,6 @@ npx drizzle-kit generate
 ```bash
 DATABASE_URL=postgresql://user:password@localhost:5432/fundingforge
 AGENT_SERVICE_URL=http://localhost:8001
-AGENTCORE_ENDPOINT=http://localhost:8000
 AWS_REGION=us-east-1
 AWS_ACCESS_KEY_ID=your_access_key
 AWS_SECRET_ACCESS_KEY=your_secret_key

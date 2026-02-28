@@ -37,29 +37,41 @@ async def invoke_pipeline(request: InvokeRequest):
     
     Streams JSON_Line outputs as newline-delimited JSON.
     """
-    # TODO: Wire up OrchestratorAgent
+    from agents.orchestrator import orchestrate_pipeline
+    import json
+    
     async def generate():
-        # Placeholder - will be replaced with orchestrator_agent.run(request)
-        import json
-        yield json.dumps({
-            "agent": "system",
-            "step": "Agent service initialized",
-            "output": None,
-            "done": False
-        }) + "\n"
-        
-        yield json.dumps({
-            "agent": "system",
-            "step": "Complete",
-            "output": {
-                "proposalDraft": "Placeholder proposal",
-                "collaborators": [],
-                "matchScore": 0,
-                "matchJustification": "Placeholder",
-                "complianceChecklist": []
-            },
-            "done": True
-        }) + "\n"
+        try:
+            # Convert Pydantic model to dict
+            request_dict = request.model_dump()
+            
+            # Stream JSON_Line outputs from orchestrator
+            async for json_line in orchestrate_pipeline(request_dict):
+                # Sanitize and validate JSON before streaming
+                try:
+                    line_str = json.dumps(json_line, ensure_ascii=False)
+                    yield line_str + "\n"
+                except (TypeError, ValueError) as e:
+                    logger.error(f"Failed to serialize JSON_Line: {e}")
+                    # Send error message
+                    error_line = json.dumps({
+                        "agent": "system",
+                        "step": "Error processing request",
+                        "output": None,
+                        "done": True
+                    })
+                    yield error_line + "\n"
+                    break
+        except Exception as e:
+            logger.error(f"Error in pipeline execution: {e}")
+            # Send error message
+            error_line = json.dumps({
+                "agent": "system",
+                "step": f"Pipeline error: {str(e)}",
+                "output": None,
+                "done": True
+            })
+            yield error_line + "\n"
     
     return StreamingResponse(generate(), media_type="application/x-ndjson")
 
