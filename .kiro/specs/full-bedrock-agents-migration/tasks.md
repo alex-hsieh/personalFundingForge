@@ -21,7 +21,7 @@ Both developers integrate their work and test the complete pipeline together.
 
 ## Tasks
 
-- [ ] 1. Track A - Week 1: AWS Infrastructure Foundation (Developer A)
+- [x] 1. Track A - Week 1: AWS Infrastructure Foundation (Developer A)
   - Set up Bedrock Agents, Knowledge Base, and IAM roles
   - _Estimated time: 1 day_
   - _Requirements: 1.1, 1.2, 1.3, 2.1-2.8, 3.1-3.9, 12.1-12.9_
