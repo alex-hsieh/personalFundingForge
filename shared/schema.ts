@@ -27,11 +27,6 @@ export type Grant = typeof grants.$inferSelect;
 export type InsertGrant = z.infer<typeof insertGrantSchema>;
 export type Faculty = typeof faculty.$inferSelect;
 export type InsertFaculty = z.infer<typeof insertFacultySchema>;
-export const buildUrl = (path: string) => `/api${path}`;
-export const streams = {
-  forge: "/forge"
-};
-// ... (your existing pgTable and type exports)
 
 export const buildUrl = (path: string, params?: Record<string, any>) => {
   const url = new URL(`/api${path}`, window.location.origin);
@@ -44,7 +39,6 @@ export const buildUrl = (path: string, params?: Record<string, any>) => {
 export const streams = {
   forge: {
     path: "/forge",
-    // Define the Zod schema that use-forge-stream.ts is looking for
     chunk: z.object({
       content: z.string().optional(),
       done: z.boolean().optional(),
