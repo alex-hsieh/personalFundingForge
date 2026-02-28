@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15
+    container_name: fundingforge-db
+    environment:
+      POSTGRES_DB: fundingforge
+      POSTGRES_USER: fundingforge
+      POSTGRES_PASSWORD: fundingforge_dev_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fundingforge"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Python Agent Service
+  agent-service:
+    build:
+      context: ./agent-service
+      dockerfile: Dockerfile
+    container_name: fundingforge-agent-service
+    environment:
+      AWS_REGION: ${AWS_REGION}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      BEDROCK_MODEL_DRAFTING: ${BEDROCK_MODEL_DRAFTING:-anthropic.claude-sonnet-4-6}
+      BEDROCK_MODEL_FAST: ${BEDROCK_MODEL_FAST:-anthropic.claude-haiku-4-5-20251001-v1:0}
+      PORT: 8001
+    ports:
+      - "8001:8001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+
+networks:
+  default:
+    name: fundingforge-network

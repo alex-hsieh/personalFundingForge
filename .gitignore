@@ -11,3 +11,24 @@ vite.config.ts.*
 /blob-report/
 /playwright/.cache/
 /playwright/.auth/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+agent-service/.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+.venv
+agent-service/venv/
+
+# Jupyter Notebook
+.ipynb_checkpoints
